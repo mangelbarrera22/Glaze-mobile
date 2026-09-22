@@ -1,16 +1,15 @@
+import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, Alert, SafeAreaView, KeyboardAvoidingView,
   Platform, StatusBar, ActivityIndicator, Image, Switch
 } from "react-native";
-import { useEffect, useState } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
 import { Feather } from "@expo/vector-icons";
-
-const BASE_URL = "http://192.168.101.60:3000/api";
+import API_BASE_URL from "../../config/api";
 
 const COLORS = {
   dark: "#0a3d2e",      
@@ -39,8 +38,8 @@ export default function EditarProducto() {
     tratamiento: "",
     valor: "",
     stock: "",
-    imagen: null,
-    certificado: null,
+    imagen: null,       // Aquí guardaremos la URL actual de Cloudinary
+    certificado: null,  // Aquí guardaremos la URL actual del certificado
     tiene_esmeralda: false,
     oro: false,
     oro_rosado: false,
@@ -54,7 +53,7 @@ export default function EditarProducto() {
   const cargarProducto = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await axios.get(`${BASE_URL}/productos/${id_producto}`, {
+      const res = await axios.get(`${API_BASE_URL}/api/productos/${id_producto}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const p = res.data;
@@ -73,6 +72,7 @@ export default function EditarProducto() {
         plata: !!p.plata,
       });
     } catch (err) {
+      console.error("Error cargando producto:", err);
       Alert.alert("Error", "No se pudo cargar el activo.");
     } finally {
       setCargando(false);
@@ -86,6 +86,7 @@ export default function EditarProducto() {
   const pickFile = async (type) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
       quality: 0.8,
     });
     if (!result.canceled) {
@@ -94,45 +95,89 @@ export default function EditarProducto() {
     }
   };
 
+  // ☁️ Función inteligente para subir directo a Cloudinary (Web y Móvil)
+  const subirArchivoCloudinary = async (fileInput) => {
+    const data = new FormData();
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileInput);
+      const blob = await response.blob();
+      data.append("file", blob, "upload.jpg");
+    } else {
+      const filename = fileInput.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+      data.append("file", {
+        uri: fileInput,
+        name: filename,
+        type,
+      });
+    }
+    
+    data.append("upload_preset", "glaze_unsigned"); 
+    data.append("cloud_name", "kadud08u");          
+
+    try {
+      const res = await axios.post(
+        "https://api.cloudinary.com/v1_1/kadud08u/image/upload",
+        data,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      return res.data.secure_url; 
+    } catch (error) {
+      console.error("DETALLE EXACTO DE CLOUDINARY:", error.response?.data || error.message);
+      throw new Error("No se pudo subir la imagen a la nube.");
+    }
+  };
+
   const guardarCambios = async () => {
     try {
       setGuardando(true);
       const token = await AsyncStorage.getItem("token");
-      const data = new FormData();
 
-      data.append("color", form.color);
-      data.append("peso", form.peso);
-      data.append("tratamiento", form.tratamiento);
-      data.append("valor", form.valor);
-      data.append("stock", form.stock);
-      
-      if (form.tipo_producto === "joya") {
-        data.append("tiene_esmeralda", form.tiene_esmeralda ? 1 : 0);
-        data.append("oro", form.oro ? 1 : 0);
-        data.append("oro_rosado", form.oro_rosado ? 1 : 0);
-        data.append("plata", form.plata ? 1 : 0);
-      }
+      let imagenUrl = form.imagen; // Mantiene la url actual por defecto
+      let certificadoUrl = form.certificado; // Mantiene el certificado actual por defecto
 
+      // 1. Si el usuario seleccionó una NUEVA imagen, súbela a Cloudinary primero
       if (imagenNueva) {
-        data.append("imagen", {
-          uri: imagenNueva.uri,
-          name: `img_${id_producto}.jpg`,
-          type: "image/jpeg",
-        });
+        console.log("☁️ Subiendo nueva imagen a Cloudinary...");
+        imagenUrl = await subirArchivoCloudinary(imagenNueva.uri);
       }
 
+      // 2. Si el usuario seleccionó un NUEVO certificado, súbelo a Cloudinary
       if (certificadoNuevo) {
-        data.append("certificado", {
-          uri: certificadoNuevo.uri,
-          name: `cert_${id_producto}.jpg`,
-          type: "image/jpeg",
-        });
+        console.log("📄 Subiendo nuevo certificado a Cloudinary...");
+        certificadoUrl = await subirArchivoCloudinary(certificadoNuevo.uri);
       }
 
-      await axios.put(`${BASE_URL}/productos/${id_producto}`, data, {
+      // 3. Crear el JSON limpio con las URLs y datos actualizados
+      const payload = {
+        color: form.color,
+        peso: form.peso,
+        tratamiento: form.tratamiento,
+        valor: form.valor,
+        stock: form.stock,
+        imagen: imagenUrl,
+        certificado: certificadoUrl,
+      };
+
+      if (form.tipo_producto === "joya") {
+        payload.tiene_esmeralda = form.tiene_esmeralda ? "1" : "0";
+        payload.oro = form.oro ? "1" : "0";
+        payload.oro_rosado = form.oro_rosado ? "1" : "0";
+        payload.plata = form.plata ? "1" : "0";
+      }
+
+      console.log(`🚀 Actualizando producto ID ${id_producto} con JSON limpio...`);
+
+      // 4. Enviar petición PUT con JSON a tu backend
+      await axios.put(`${API_BASE_URL}/api/productos/${id_producto}`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "application/json",
         },
       });
 
@@ -140,6 +185,7 @@ export default function EditarProducto() {
         { text: "FINALIZAR", onPress: () => router.back() }
       ]);
     } catch (err) {
+      console.error("Error al actualizar:", err.response?.data || err.message);
       Alert.alert("Error", "Fallo en la sincronización.");
     } finally {
       setGuardando(false);
@@ -165,8 +211,8 @@ export default function EditarProducto() {
             <Text style={styles.headerTitle}>EDITAR {form.tipo_producto?.toUpperCase()}</Text>
             <Text style={styles.headerTag}>CERTIFIED ASSET • GLAZE LUXURY</Text>
           </View>
-          <Image 
-            source={require("C://Users/Migue/OneDrive/Desktop/EMERALD_TRADE/emerald-mobile/assets/images/LOGOS/Isotipo/Glaze-blanco.png")}
+          <Image
+            source={require("../../assets/images/LOGOS/Isotipo/Glaze-blanco.png")}
             style={styles.logoHeader}
             resizeMode="contain"
           />
@@ -204,7 +250,13 @@ export default function EditarProducto() {
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>REGISTRO FOTOGRÁFICO</Text>
             <Image
-              source={imagenNueva ? { uri: imagenNueva.uri } : { uri: `http://192.168.101.60:3000/uploads/${form.imagen}` }}
+              source={
+                imagenNueva 
+                  ? { uri: imagenNueva.uri } 
+                  : form.imagen 
+                    ? { uri: form.imagen } 
+                    : require("../../assets/images/esmeralda.png")
+              }
               style={styles.preview}
             />
             <TouchableOpacity style={styles.fileButton} onPress={() => pickFile('imagen')}>
@@ -219,7 +271,11 @@ export default function EditarProducto() {
             <View style={[styles.preview, { height: 120, justifyContent: 'center', backgroundColor: '#f0f0f0' }]}>
                 { (certificadoNuevo || form.certificado) ? (
                     <Image
-                        source={certificadoNuevo ? { uri: certificadoNuevo.uri } : { uri: `http://192.168.101.60:3000/uploads/${form.certificado}` }}
+                        source={
+                          certificadoNuevo 
+                            ? { uri: certificadoNuevo.uri } 
+                            : { uri: form.certificado }
+                        }
                         style={{ width: '100%', height: '100%' }}
                         resizeMode="contain"
                     />

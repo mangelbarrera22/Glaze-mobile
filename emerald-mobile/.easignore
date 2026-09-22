@@ -1,0 +1,11 @@
+node_modules
+.expo
+.git
+npm-debug.*
+*.log
+
+# Excluir proyectos hermanos del monorepo (no forman parte de emerald-mobile)
+../emerald-backend
+../emerald-frontend
+../LOGOS
+../scripts

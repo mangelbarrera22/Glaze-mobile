@@ -85,11 +85,11 @@ export default function Login() {
             <Text style={styles.cardTitle}>Acceso Exclusivo</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>NOMBRE DE USUARIO</Text>
+              <Text style={styles.inputLabel}>NOMBRE DE USUARIO o CORREO ELECTRÓNICO</Text>
               <View style={styles.inputWrapper}>
                 <Feather name="user" size={18} color="#94a3b8" />
                 <TextInput
-                  placeholder="ej. usuario.usuario"
+                  placeholder="ej. usuario o correo "
                   placeholderTextColor="#cbd5e1"
                   style={styles.input}
                   value={usuario}

@@ -25,6 +25,7 @@ export default function Soporte() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [token, setToken] = useState(null);
   
   // Estado para el formulario
   const [form, setForm] = useState({
@@ -35,20 +36,26 @@ export default function Soporte() {
   // Estado para el mensaje de respuesta debajo del botón
   const [statusMsg, setStatusMsg] = useState({ text: "", color: "transparent" });
 
-  // Recuperar el ID del usuario al cargar
+  // Recuperar el ID del usuario y el Token al cargar
   useEffect(() => {
-    const cargarUsuario = async () => {
+    const cargarSesion = async () => {
       try {
         const usuarioRaw = await AsyncStorage.getItem("usuario");
+        const tokenRaw = await AsyncStorage.getItem("token");
+
         if (usuarioRaw) {
           const user = JSON.parse(usuarioRaw);
           setUserId(user.id_usuario);
+        }
+
+        if (tokenRaw) {
+          setToken(tokenRaw);
         }
       } catch (e) {
         console.error("Error sesión:", e);
       }
     };
-    cargarUsuario();
+    cargarSesion();
   }, []);
 
   const enviarConsulta = async () => {
@@ -73,8 +80,13 @@ export default function Soporte() {
         mensaje: form.mensaje.trim()
       };
 
+      // Configuración con Token Bearer
+      const config = token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : {};
+
       // 2. Petición al servidor
-      const response = await axios.post("http://192.168.101.60:3000/api/soporte", payload);
+      const response = await axios.post("http://glaze-backend-production-ad01.up.railway.app/api/soporte", payload, config);
 
       if (response.status === 201 || response.status === 200) {
         // 3. Éxito: Mostrar mensaje y limpiar formulario

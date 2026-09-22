@@ -43,11 +43,20 @@ export default function Conversacion() {
     try {
       if (mostrarLoading) setLoading(true);
       const token = await AsyncStorage.getItem("token");
-const res = await axios.get(`${API_BASE_URL}/api/mensajes/${id_conversacion}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+
+      if (!token) return;
+
+      const res = await axios.get(
+        `${API_BASE_URL}/api/mensajes/${id_conversacion}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       setMensajes(res.data);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
     } catch (error) {
       console.log("❌ Error cargando mensajes:", error.response?.data || error.message);
     } finally {
@@ -87,7 +96,7 @@ const res = await axios.get(`${API_BASE_URL}/api/mensajes/${id_conversacion}`, {
             {item.contenido_mensaje}
           </Text>
         </View>
-        <Text style={styles.hora}>
+        <Text style={[styles.hora, esMio ? styles.horaDerecha : styles.horaIzquierda]}>
           {new Date(item.fecha_hora).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Text>
       </View>
@@ -105,22 +114,23 @@ const res = await axios.get(`${API_BASE_URL}/api/mensajes/${id_conversacion}`, {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="chevron-left" size={24} color="#0a3d2e" />
+          <Feather name="chevron-left" size={26} color="#0a3d2e" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerNombre}>{nombre_contacto?.toUpperCase() || "CONVERSACIÓN"}</Text>
+          <Text style={styles.headerNombre}>{nombre_contacto || "Conversación"}</Text>
           <Text style={styles.headerSub}>GLAZE PRIVATE MESSAGING</Text>
         </View>
+        <View style={{ width: 36 }} /> {/* Espaciador para centrar el título */}
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <FlatList
           ref={flatListRef}
@@ -131,7 +141,7 @@ const res = await axios.get(`${API_BASE_URL}/api/mensajes/${id_conversacion}`, {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Feather name="message-square" size={32} color="#cbd5e1" />
+              <Feather name="message-square" size={36} color="#cbd5e1" />
               <Text style={styles.emptyText}>INICIA LA CONVERSACIÓN</Text>
             </View>
           }
@@ -154,7 +164,7 @@ const res = await axios.get(`${API_BASE_URL}/api/mensajes/${id_conversacion}`, {
           >
             {enviando
               ? <ActivityIndicator size="small" color="white" />
-              : <Feather name="send" size={18} color="white" />
+              : <Feather name="send" size={18} color="white" style={{ marginLeft: 2 }} />
             }
           </TouchableOpacity>
         </View>
@@ -164,45 +174,179 @@ const res = await axios.get(`${API_BASE_URL}/api/mensajes/${id_conversacion}`, {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  loadingCenter: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 10, fontSize: 10, letterSpacing: 2, color: "#0a3d2e" },
-  header: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 20, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: "#f1f5f9"
+  container: { 
+    flex: 1, 
+    backgroundColor: "#f4f4f8" // Fondo suave como en la imagen de referencia
   },
-  backBtn: { padding: 5, marginRight: 10 },
-  headerInfo: {},
-  headerNombre: { fontSize: 13, fontWeight: "700", color: "#0a3d2e", letterSpacing: 2 },
-  headerSub: { fontSize: 8, color: "#94a3b8", letterSpacing: 1, marginTop: 2 },
-  listContent: { padding: 20, paddingBottom: 10 },
-  bubbleWrapper: { marginBottom: 16, maxWidth: "75%" },
-  wrapperDerecha: { alignSelf: "flex-end", alignItems: "flex-end" },
-  wrapperIzquierda: { alignSelf: "flex-start", alignItems: "flex-start" },
-  nombreEmisor: { fontSize: 9, color: "#94a3b8", letterSpacing: 1, marginBottom: 4 },
-  bubble: { borderRadius: 2, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMio: { backgroundColor: "#0a3d2e" },
-  bubbleOtro: { backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#f1f5f9" },
-  bubbleTexto: { fontSize: 14, color: "#1e293b", lineHeight: 20 },
-  bubbleTextoBlanco: { color: "#fff" },
-  hora: { fontSize: 9, color: "#cbd5e1", marginTop: 4 },
-  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 80 },
-  emptyText: { fontSize: 10, letterSpacing: 2, color: "#cbd5e1", marginTop: 10 },
+  loadingCenter: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center",
+    backgroundColor: "#f4f4f8"
+  },
+  loadingText: { 
+    marginTop: 12, 
+    fontSize: 10, 
+    letterSpacing: 2, 
+    color: "#0a3d2e",
+    fontWeight: "600"
+  },
+  
+  /* --- HEADER --- */
+  header: {
+    flexDirection: "row", 
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15, 
+    paddingVertical: 12,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1, 
+    borderBottomColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  backBtn: { 
+    padding: 5,
+  },
+  headerInfo: { 
+    alignItems: "center",
+    flex: 1,
+  },
+  headerNombre: { 
+    fontSize: 15, 
+    fontWeight: "700", 
+    color: "#1e293b", 
+    letterSpacing: 0.5 
+  },
+  headerSub: { 
+    fontSize: 9, 
+    color: "#64748b", 
+    letterSpacing: 1.5, 
+    marginTop: 2,
+    fontWeight: "600"
+  },
+
+  /* --- ZONA DE CHAT --- */
+  listContent: { 
+    padding: 16, 
+    paddingBottom: 20 
+  },
+  bubbleWrapper: { 
+    marginBottom: 16, 
+    maxWidth: "78%" 
+  },
+  wrapperDerecha: { 
+    alignSelf: "flex-end", 
+    alignItems: "flex-end" 
+  },
+  wrapperIzquierda: { 
+    alignSelf: "flex-start", 
+    alignItems: "flex-start" 
+  },
+  nombreEmisor: { 
+    fontSize: 11, 
+    color: "#64748b", 
+    marginBottom: 6,
+    marginLeft: 4,
+    fontWeight: "500"
+  },
+  bubble: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 12,
+    borderRadius: 20, // Bordes muy suaves
+  },
+  bubbleMio: { 
+    backgroundColor: "#0a3d2e", 
+    borderBottomRightRadius: 4, // Crea el efecto de "colita" del chat a la derecha
+  },
+  bubbleOtro: { 
+    backgroundColor: "#ffffff", 
+    borderBottomLeftRadius: 4, // Crea el efecto de "colita" a la izquierda
+    borderWidth: 1, 
+    borderColor: "#e2e8f0",
+    shadowColor: "#000", // Sombra muy sutil para dar volumen
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1
+  },
+  bubbleTexto: { 
+    fontSize: 15, 
+    color: "#1e293b", 
+    lineHeight: 22 
+  },
+  bubbleTextoBlanco: { 
+    color: "#ffffff" 
+  },
+  hora: { 
+    fontSize: 10, 
+    color: "#94a3b8", 
+    marginTop: 6,
+    fontWeight: "500"
+  },
+  horaDerecha: {
+    marginRight: 4
+  },
+  horaIzquierda: {
+    marginLeft: 4
+  },
+
+  /* --- ESTADOS VACÍOS --- */
+  emptyContainer: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center", 
+    paddingTop: 100 
+  },
+  emptyText: { 
+    fontSize: 11, 
+    letterSpacing: 2, 
+    color: "#94a3b8", 
+    marginTop: 12,
+    fontWeight: "600"
+  },
+
+  /* --- BARRA DE ENTRADA --- */
   inputRow: {
-    flexDirection: "row", alignItems: "flex-end",
-    paddingHorizontal: 20, paddingVertical: 12,
-    borderTopWidth: 1, borderTopColor: "#f1f5f9",
-    backgroundColor: "#fff"
+    flexDirection: "row", 
+    alignItems: "flex-end",
+    paddingHorizontal: 16, 
+    paddingVertical: 12,
+    backgroundColor: "#ffffff",
+    borderTopWidth: 1, 
+    borderTopColor: "#e2e8f0",
   },
   input: {
-    flex: 1, borderWidth: 1, borderColor: "#f1f5f9",
-    borderRadius: 2, paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 14, color: "#1e293b", maxHeight: 100, marginRight: 10
+    flex: 1, 
+    backgroundColor: "#f1f5f9", // Estilo píldora gris claro
+    borderRadius: 24, 
+    paddingHorizontal: 18, 
+    paddingTop: 12,
+    paddingBottom: 12,
+    fontSize: 15, 
+    color: "#1e293b", 
+    maxHeight: 120, 
+    marginRight: 12
   },
   sendBtn: {
-    width: 44, height: 44, backgroundColor: "#0a3d2e",
-    justifyContent: "center", alignItems: "center", borderRadius: 2
+    width: 44, 
+    height: 44, 
+    backgroundColor: "#0a3d2e",
+    justifyContent: "center", 
+    alignItems: "center", 
+    borderRadius: 22, // Botón completamente redondo
+    shadowColor: "#0a3d2e",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
   },
-  sendBtnDisabled: { backgroundColor: "#cbd5e1" }
+  sendBtnDisabled: { 
+    backgroundColor: "#cbd5e1",
+    shadowOpacity: 0,
+    elevation: 0
+  }
 });

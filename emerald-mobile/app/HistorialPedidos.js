@@ -1,15 +1,27 @@
 import React, { useEffect, useState } from "react";
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, StatusBar, ActivityIndicator, Image, Dimensions
+import { 
+  Alert,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator,
+  Image,
+  Dimensions,
+  Platform
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { useRouter } from "expo-router";
-
+import API_BASE_URL from "../config/api"; 
 const { width } = Dimensions.get("window");
-const BASE_URL = "http://192.168.101.60:3000/api";
+
 const COLORS = { 
   dark: "#0a3d2e", 
   accent: "#1f6f54", 
@@ -32,14 +44,29 @@ export default function HistorialPedidos() {
     try {
       setCargando(true);
       setError(null);
+
+      // 1. Obtener usuario y token almacenados
       const usuarioRaw = await AsyncStorage.getItem("usuario");
+      const token = await AsyncStorage.getItem("token");
+
       if (!usuarioRaw) throw new Error("Sesión no encontrada.");
 
       const usuario = JSON.parse(usuarioRaw);
-      const res = await axios.get(`${BASE_URL}/historial/${usuario.id_usuario}`);
+
+      // 2. Enviar el token Bearer en los headers de Axios
+      const res = await axios.get(
+        `${API_BASE_URL}/api/historial/${usuario.id_usuario}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
       setPedidos(res.data);
     } catch (err) {
-      setError(err.message || "Error al cargar el historial.");
+      console.error("Error al cargar historial:", err.response?.data || err.message);
+      setError(err.response?.data?.error || err.message || "Error al cargar el historial.");
     } finally {
       setCargando(false);
     }
@@ -51,7 +78,442 @@ export default function HistorialPedidos() {
       year: "numeric", month: "short", day: "numeric",
     }).toUpperCase();
   };
+ const imprimirCertificado = async (p) => {
+  try {
+    console.log("🖨️ Generando certificado:", p.id_venta);
 
+    const imagenProducto = p.imagen
+      ? `${API_BASE_URL}/uploads/${p.imagen}`
+      : null;
+
+    const certificado = p.certificado
+      ? `${API_BASE_URL}/uploads/${p.certificado}`
+      : null;
+
+    const referencia = `GLZ-${String(p.id_venta).padStart(5, "0")}`;
+
+    const valor = p.valor_compra != null
+      ? Number(p.valor_compra).toLocaleString("es-CO")
+      : "—";
+
+    const fecha = formatearFecha(p.fecha_compra);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+
+        <title>Certificado ${referencia}</title>
+
+        <style>
+
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            margin: 0;
+            padding: 0;
+            background: white;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #0a3d2e;
+          }
+
+          .page {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 45px;
+          }
+
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #1f6f54;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+          }
+
+          .logo {
+            font-size: 34px;
+            font-weight: 300;
+            letter-spacing: 7px;
+          }
+
+          .subtitle {
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: #94a3b8;
+            margin-top: 8px;
+          }
+
+          .reference {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+          }
+
+          .reference-label {
+            font-size: 8px;
+            color: #94a3b8;
+            letter-spacing: 2px;
+          }
+
+          .reference-value {
+            font-size: 17px;
+            color: #0a3d2e;
+            letter-spacing: 2px;
+          }
+
+          .status {
+            background: #0a3d2e;
+            color: white;
+            display: inline-block;
+            padding: 7px 12px;
+            font-size: 8px;
+            letter-spacing: 2px;
+          }
+
+          .product {
+            display: flex;
+            align-items: center;
+            border: 1px solid #f1f5f9;
+            padding: 25px;
+            margin-top: 25px;
+          }
+
+          .product-image {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+            margin-right: 35px;
+          }
+
+          .product-info {
+            flex: 1;
+          }
+
+          .label {
+            font-size: 8px;
+            color: #94a3b8;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+          }
+
+          .value {
+            font-size: 16px;
+            color: #0a3d2e;
+            margin-bottom: 18px;
+          }
+
+          .details {
+            border-top: 1px solid #f1f5f9;
+            border-bottom: 1px solid #f1f5f9;
+            padding: 20px 0;
+            margin-top: 25px;
+          }
+
+          .row {
+            display: flex;
+            justify-content: space-between;
+          }
+
+          .total {
+            font-size: 24px;
+            color: #0a3d2e;
+          }
+
+          .certificate {
+            margin-top: 30px;
+            text-align: center;
+          }
+
+          .certificate-title {
+            font-size: 11px;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+          }
+
+          .certificate-image {
+            max-width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+          }
+
+          .footer {
+            margin-top: 45px;
+            padding-top: 15px;
+            border-top: 1px solid #f1f5f9;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 8px;
+            letter-spacing: 1px;
+          }
+
+          @media print {
+
+            @page {
+              size: A4;
+              margin: 0;
+            }
+
+            body {
+              width: 210mm;
+              min-height: 297mm;
+            }
+
+            .page {
+              width: 210mm;
+              min-height: 297mm;
+              padding: 20mm;
+            }
+
+          }
+
+        </style>
+      </head>
+
+      <body>
+
+        <div class="page">
+
+          <div class="header">
+
+            <div class="logo">
+              GLAZE
+            </div>
+
+            <div class="subtitle">
+              CERTIFICADO DIGITAL DE ADQUISICIÓN
+            </div>
+
+          </div>
+
+
+          <div class="reference">
+
+            <div>
+              <div class="reference-label">
+                REFERENCIA DE VENTA
+              </div>
+
+              <div class="reference-value">
+                ${referencia}
+              </div>
+            </div>
+
+            <span class="status">
+              COMPRA CONFIRMADA
+            </span>
+
+          </div>
+
+
+          <div class="product">
+
+            ${
+              imagenProducto
+                ? `
+                  <img
+                    class="product-image"
+                    src="${imagenProducto}"
+                  />
+                `
+                : ""
+            }
+
+
+            <div class="product-info">
+
+              <div class="label">
+                PIEZA ADQUIRIDA
+              </div>
+
+              <div class="value">
+                ${(p.nombre_producto || "Gema Exclusiva").toUpperCase()}
+              </div>
+
+
+              <div class="label">
+                COLOR
+              </div>
+
+              <div class="value">
+                ${p.color || "Especial"}
+              </div>
+
+
+              <div class="label">
+                PESO
+              </div>
+
+              <div class="value">
+                ${p.peso || "N/A"} CT
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="details">
+
+            <div class="row">
+
+              <div>
+
+                <div class="label">
+                  FECHA DE ADQUISICIÓN
+                </div>
+
+                <div>
+                  ${fecha}
+                </div>
+
+              </div>
+
+
+              <div style="text-align:right">
+
+                <div class="label">
+                  VALOR DE ADQUISICIÓN
+                </div>
+
+                <div class="total">
+                  $${valor}
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          ${
+            certificado
+              ? `
+                <div class="certificate">
+
+                  <div class="certificate-title">
+                    CERTIFICADO DE AUTENTICIDAD
+                  </div>
+
+                  <img
+                    class="certificate-image"
+                    src="${certificado}"
+                  />
+
+                </div>
+              `
+              : ""
+          }
+
+
+          <div class="footer">
+            GLAZE · REGISTRO DIGITAL DE ADQUISICIONES
+          </div>
+
+        </div>
+
+      </body>
+      </html>
+    `;
+
+
+    // ==========================================
+    // 🌐 WEB
+    // ==========================================
+
+    if (Platform.OS === "web") {
+
+      console.log("🌐 Generando impresión individual WEB");
+
+      const ventana = window.open(
+        "",
+        "_blank",
+        "width=900,height=1000"
+      );
+
+      if (!ventana) {
+        Alert.alert(
+          "Ventana bloqueada",
+          "Permite las ventanas emergentes para imprimir el certificado."
+        );
+        return;
+      }
+
+      ventana.document.open();
+      ventana.document.write(html);
+      ventana.document.close();
+
+      // Esperar a que carguen las imágenes
+      setTimeout(() => {
+
+        ventana.focus();
+
+        ventana.print();
+
+      }, 800);
+
+      return;
+    }
+
+
+    // ==========================================
+    // 📱 ANDROID / IOS
+    // ==========================================
+
+    const resultado = await Print.printToFileAsync({
+      html: html,
+      base64: false
+    });
+
+    console.log("✅ PDF generado:", resultado);
+
+    if (resultado?.uri) {
+
+      if (await Sharing.isAvailableAsync()) {
+
+        await Sharing.shareAsync(resultado.uri, {
+          mimeType: "application/pdf",
+          dialogTitle: `Certificado ${referencia}`,
+          UTI: "com.adobe.pdf"
+        });
+
+      } else {
+
+        Alert.alert(
+          "PDF generado",
+          "El certificado fue generado correctamente."
+        );
+
+      }
+
+    } else {
+
+      Alert.alert(
+        "Error",
+        "No se pudo generar el archivo PDF."
+      );
+
+    }
+
+  } catch (error) {
+
+    console.log(
+      "❌ ERROR GENERANDO CERTIFICADO:",
+      error
+    );
+
+    Alert.alert(
+      "Error",
+      "No fue posible generar el certificado."
+    );
+
+  }
+};
   return (
     <SafeAreaView style={styles.mainWrapper}>
       <StatusBar barStyle="dark-content" />
@@ -103,7 +565,7 @@ export default function HistorialPedidos() {
                 <View style={styles.productoRow}>
                   {p.imagen && (
                     <Image 
-                      source={{ uri: `http://192.168.101.60:3000/uploads/${p.imagen}` }} 
+                      source={{ uri: `${API_BASE_URL}/uploads/${p.imagen}` }} 
                       style={styles.miniature}
                     />
                   )}
@@ -129,10 +591,16 @@ export default function HistorialPedidos() {
                 </View>
 
                 {/* BOTÓN ACCIÓN */}
-                <TouchableOpacity style={styles.btnAction}>
-                  <Feather name="file-text" size={14} color="white" />
-                  <Text style={styles.btnActionText}>DESCARGAR CERTIFICADO DIGITAL</Text>
-                </TouchableOpacity>
+                <TouchableOpacity
+  style={styles.btnAction}
+  onPress={() => imprimirCertificado(p)}
+>
+  <Feather name="printer" size={14} color="white" />
+
+  <Text style={styles.btnActionText}>
+    IMPRIMIR CERTIFICADO DIGITAL
+  </Text>
+</TouchableOpacity>
               </View>
             </View>
           ))

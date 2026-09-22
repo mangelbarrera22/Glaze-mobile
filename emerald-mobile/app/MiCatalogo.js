@@ -7,8 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-
-const BASE_URL = "http://192.168.101.60:3000/api";
+import API_BASE_URL from "../config/api"; // <-- Usamos tu archivo de configuración centralizado
 
 export default function MiCatalogo() {
   const router = useRouter();
@@ -32,7 +31,9 @@ export default function MiCatalogo() {
       if (!usuario?.id_usuario) throw new Error("ID de usuario no válido.");
 
       const token = await AsyncStorage.getItem("token");
-      const res = await axios.get(`${BASE_URL}/productos/vendedor/${usuario.id_usuario}`, {
+      
+      // Usamos el API_BASE_URL correcto con https://
+      const res = await axios.get(`${API_BASE_URL}/api/productos/vendedor/${usuario.id_usuario}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProductos(res.data);
@@ -55,7 +56,7 @@ export default function MiCatalogo() {
           onPress: async () => {
             try {
               const token = await AsyncStorage.getItem("token");
-              await axios.delete(`${BASE_URL}/productos/${id_producto}`, {
+              await axios.delete(`${API_BASE_URL}/api/productos/${id_producto}`, {
                 headers: { Authorization: `Bearer ${token}` },
               });
               cargarProductos();
@@ -173,11 +174,12 @@ export default function MiCatalogo() {
           return (
             <View style={[styles.card, vendido && styles.cardVendido]} key={`${p.id_producto}-${index}`}>
 
-              {/* IMAGEN */}
+              {/* IMAGEN: Pintamos directo la URL segura que viene de Cloudinary */}
               {p.imagen ? (
                 <Image
-                  source={{ uri: `http://192.168.101.60:3000/uploads/${p.imagen}` }}
+                  source={{ uri: p.imagen }}
                   style={[styles.imagen, vendido && styles.imagenVendida]}
+                  resizeMode="cover"
                 />
               ) : (
                 <View style={styles.imagenPlaceholder}>

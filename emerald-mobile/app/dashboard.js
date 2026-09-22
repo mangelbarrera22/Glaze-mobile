@@ -18,13 +18,21 @@ import API_BASE_URL from "../config/api";
 export default function Dashboard() {
   const router = useRouter();
 
-  const [usuario, setUsuario] = useState("");
+  const [nombreCompleto, setNombreCompleto] = useState(""); // 🔥 CAMBIO
   const [stats, setStats] = useState({
     totalCompras: 0,
     gastoTotal: 0
   });
 
   const [loadingStats, setLoadingStats] = useState(true);
+
+  // ==========================
+  // 🧩 FUNCIÓN CAPITALIZAR
+  // ==========================
+  const capitalizar = (texto) => {
+    if (!texto) return "";
+    return texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
+  };
 
   // ==========================
   // 👤 CARGAR USUARIO
@@ -39,7 +47,12 @@ export default function Dashboard() {
       }
 
       const user = JSON.parse(data);
-      setUsuario(user.usuario);
+
+      // 🔥 EXTRAER NOMBRE Y APELLIDO CAPITALIZADOS
+      const nombre = capitalizar(user.primer_nombre || "");
+      const apellido = capitalizar(user.primer_apellido || "");
+
+      setNombreCompleto(`${nombre} ${apellido}`);
 
     } catch (error) {
       console.log("Error usuario:", error);
@@ -81,7 +94,7 @@ export default function Dashboard() {
     } catch (error) {
       console.log("Error stats:", error);
     } finally {
-      setLoadingStats(false); // 🔥 IMPORTANTE
+      setLoadingStats(false);
     }
   };
 
@@ -136,7 +149,7 @@ export default function Dashboard() {
           <View>
             <Text style={styles.bienvenida}>Bienvenido,</Text>
             <Text style={styles.usuarioName}>
-              {usuario || "Usuario"}
+              {nombreCompleto || "Usuario"} {/* 🔥 CAMBIO */}
             </Text>
           </View>
 
@@ -205,6 +218,12 @@ export default function Dashboard() {
           subtitle="Gestión de pedidos"
           onPress={() => router.push("/HistorialPedidos")}
         />
+        <MenuOption 
+          icon="message-circle" 
+          title="Mensajes" 
+          subtitle="Comunícate con vendedores"
+          onPress={() => router.push("/conversaciones")}
+        />
 
         {/* 👤 CUENTA */}
         <Text style={styles.sectionTitle}>
@@ -236,7 +255,7 @@ export default function Dashboard() {
 }
 
 // ==========================
-// 🎨 ESTILOS
+// 🎨 ESTILOS (SIN CAMBIOS)
 // ==========================
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fdfdfd" },

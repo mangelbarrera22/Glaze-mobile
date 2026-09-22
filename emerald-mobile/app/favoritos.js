@@ -7,9 +7,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
+import API_BASE_URL from "../config/api"; 
 const { width } = Dimensions.get("window");
-const BASE_URL = "http://192.168.101.60:3000/api";
+
 const COLORS = { dark: "#0a3d2e", accent: "#1f6f54", light: "#94a3b8", bg: "#fcfdfd" };
 
 export default function Favoritos() {
@@ -22,21 +22,29 @@ export default function Favoritos() {
     cargarFavoritos();
   }, []);
 
-  const cargarFavoritos = async () => {
+const cargarFavoritos = async () => {
     try {
       setLoading(true);
       const usuarioData = await AsyncStorage.getItem("usuario");
+      const token = await AsyncStorage.getItem("token"); // 1. Recuperar token
+
       if (!usuarioData) {
         setLoading(false);
         return;
       }
       
       const usuario = JSON.parse(usuarioData);
-      // Petición al endpoint que trae los favoritos ligados al ID del usuario
-      const res = await axios.get(`${BASE_URL}/favoritos/${usuario.id_usuario}`);
+
+      // 2. Enviar el token en los headers de la petición
+      const res = await axios.get(`${API_BASE_URL}/api/favoritos/${usuario.id_usuario}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
       setFavoritos(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
-      console.error("Error cargando favoritos:", error);
+      console.error("Error cargando favoritos:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -44,11 +52,18 @@ export default function Favoritos() {
 
   const eliminarFavorito = async (id_favorito, id_producto) => {
     try {
-      // LLAMADA CORRECTA: Solo enviamos el ID único del registro en la tabla favoritos
-      // Esto soluciona el error 404 al coincidir con router.delete('/favoritos/:id')
-      await axios.delete(`${BASE_URL}/favoritos/${id_favorito}`);
+      const usuarioData = await AsyncStorage.getItem("usuario");
+      const token = await AsyncStorage.getItem("token");
+      const usuario = JSON.parse(usuarioData);
 
-      // Actualización optimista: filtramos por id_producto para quitarlo de la lista visual
+      // 3. Incluir el token y ajustar los parámetros si la ruta requiere id_usuario
+      await axios.delete(`${API_BASE_URL}/api/favoritos/${usuario.id_usuario}/${id_producto}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      // Actualización optimista de la lista
       setFavoritos(prev => prev.filter(item => item.id_producto !== id_producto));
     } catch (error) {
       console.error("Error al eliminar:", error.response?.data || error.message);
@@ -88,7 +103,7 @@ export default function Favoritos() {
           </View>
 
           <Image
-            source={{ uri: `http://192.168.101.60:3000/uploads/${p.imagen}` }}
+            source={{ uri: `${API_BASE_URL}/uploads/${p.imagen}` }}
             style={styles.gemImage}
             resizeMode="contain"
           />

@@ -1,5 +1,5 @@
 import axios from "axios";
 
 export default axios.create({
- baseURL: "http://192.168.101.60:3000/api"
+ baseURL: "https://glaze-backend-production-ad01.up.railway.app/api"
 });

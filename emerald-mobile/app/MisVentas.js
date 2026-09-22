@@ -15,9 +15,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
-// ⚠️ VERIFICA TU IP AQUÍ
-const BASE_URL = "http://192.168.101.60:3000/api";
+import API_BASE_URL from "../config/api";
 
 const COLORS = {
   dark: "#0a3d2e",      // Verde Glaze
@@ -38,51 +36,42 @@ export default function MisVentas() {
   const [filtro, setFiltro] = useState("");
 
   useEffect(() => {
-    console.log("--- [MisVentas] Montado ---");
     cargarVentas();
   }, []);
 
-  const cargarVentas = async () => {
-    console.log("--- [MisVentas] Iniciando petición ---");
-    try {
-      setCargando(true);
-      
-      const token = await AsyncStorage.getItem("token");
-      const userRaw = await AsyncStorage.getItem("usuario");
-      
-      if (!userRaw) {
-        console.warn("--- [MisVentas] No se encontró usuario en Storage ---");
-        setCargando(false);
-        return;
-      }
+ // DENTRO DE MisVentas.jsx
 
-      const usuario = JSON.parse(userRaw);
-      // Probamos todas las variantes posibles de ID
-      const idUsuario = usuario.id_usuario || usuario.id || usuario.id_vendedor;
-      
-      console.log("--- [MisVentas] Consultando para ID:", idUsuario);
-
-      const res = await axios.get(
-        `${BASE_URL}/ventas/vendedor/${idUsuario}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      console.log("--- [MisVentas] Respuesta recibida:", res.data);
-      setVentas(Array.isArray(res.data) ? res.data : []);
-
-    } catch (err) {
-      console.error("--- [MisVentas] Error detallado:", {
-        mensaje: err.message,
-        data: err.response?.data,
-        status: err.response?.status
-      });
-    } finally {
+const cargarVentas = async () => {
+  try {
+    setCargando(true);
+    
+    const token = await AsyncStorage.getItem("token");
+    const userRaw = await AsyncStorage.getItem("usuario");
+    
+    if (!token || !userRaw) {
       setCargando(false);
-      console.log("--- [MisVentas] Carga finalizada ---");
+      return;
     }
-  };
+
+    const usuario = JSON.parse(userRaw);
+    // Tomamos el ID del usuario almacenado en sesión
+    const idUsuario = usuario.id_usuario || usuario.id || usuario.id_vendedor;
+
+    // Petición enviando únicamente el Token de Autorización
+    const res = await axios.get(
+      `${API_BASE_URL}/api/ventas/vendedor/${idUsuario}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    setVentas(Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    console.error("❌ Error en MisVentas:", err.response?.data || err.message);
+  } finally {
+    setCargando(false);
+  }
+};
 
   const filtradas = ventas.filter((v) =>
     (v.nombre_producto || "").toLowerCase().includes(filtro.toLowerCase()) ||
@@ -150,7 +139,7 @@ export default function MisVentas() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.dark} />
-      
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="chevron-left" size={28} color={COLORS.white} />
@@ -161,7 +150,8 @@ export default function MisVentas() {
         </View>
         <Image 
           source={require("../assets/images/LOGOS/Isotipo/Glaze-blanco.png")} 
-          style={styles.logoHeader} resizeMode="contain" 
+          style={styles.logoHeader} 
+          resizeMode="contain" 
         />
       </View>
 

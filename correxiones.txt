@@ -1,0 +1,1 @@
+cambiar login y lógica de usuario, cambiar preguntas, quitar relacionado con envios, quitar red de maestros artesanos, cambiar para que en el registro se agregue dirección, 

@@ -1,0 +1,15 @@
+VENDEDORES
+
+publicar nueva esmeralda (HECHO)
+ver mi cataalogo (HECHO)
+esmeraldas vendidas(A MEDIAS)
+
+Editar Perfil
+Contactar Soporte
+Preguntas Frecuentes
+
+admin
+
+CRUD para ver usuarios, vendedores, esmeraldas, joyas, ver todas las ventas en tablas divididas en ventas de joyas, esmeraldas, como también poder visualizar el seguimiento blockchain
+
+Corregir la actualización de contraseña en web 

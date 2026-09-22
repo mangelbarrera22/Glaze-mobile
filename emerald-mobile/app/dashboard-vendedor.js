@@ -19,6 +19,15 @@ const COLORS = {
   white: "#ffffff",
   gold: "#b8a355"
 };
+const capitalizar = (texto = "") => {
+  return texto
+    .toLowerCase()
+    .split(" ")
+    .map(
+      palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1)
+    )
+    .join(" ");
+};
 
 export default function DashboardVendedor() {
   const router = useRouter();
@@ -39,6 +48,16 @@ export default function DashboardVendedor() {
 
       if (!storedUser || !token) {
         router.replace("/");
+        const capitalizar = (texto = "") => {
+  return texto
+    .toLowerCase()
+    .split(" ")
+    .map(
+      palabra =>
+        palabra.charAt(0).toUpperCase() + palabra.slice(1)
+    )
+    .join(" ");
+};
         return;
       }
       setUsuario(JSON.parse(storedUser));
@@ -108,13 +127,20 @@ export default function DashboardVendedor() {
       {/* HEADER INSTITUCIONAL */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
+           <Text style={styles.usuarioName}>
+  {usuario
+    ? `${capitalizar(usuario.primer_nombre)} ${capitalizar(usuario.primer_apellido)}`
+    : "Especialista"}
+</Text> 
           <View>
             <Text style={styles.bienvenida}>Socio Estratégico,</Text>
-            <Text style={styles.usuarioName}>{usuario?.usuario || "Especialista"}</Text>
           </View>
+          
           <TouchableOpacity style={styles.miniLogout} onPress={cerrarSesion}>
+              
             <Feather name="log-out" size={18} color="white" />
           </TouchableOpacity>
+         
         </View>
         <Text style={styles.panelTag}>VENDEDOR AUTORIZADO • EMERALD TRADE</Text>
       </View>

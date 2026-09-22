@@ -73,6 +73,47 @@ export default function PublicarProducto() {
     }
   };
 
+  // ☁️ Función limpia y directa con Axios hacia Cloudinary
+  const subirArchivoCloudinary = async (fileInput) => {
+    const data = new FormData();
+
+    // Si viene desde la web, fileInput puede ser un objeto o string, adaptemos el archivo:
+    if (Platform.OS === 'web') {
+      // En la web, si el ImagePicker te da una uri de tipo blob o file, la convertimos:
+      const response = await fetch(fileInput);
+      const blob = await response.blob();
+      data.append("file", blob, "upload.jpg");
+    } else {
+      // En celular nativo (Android / iOS)
+      const filename = fileInput.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+      data.append("file", {
+        uri: fileInput,
+        name: filename,
+        type,
+      });
+    }
+    
+    data.append("upload_preset", "glaze_unsigned"); 
+    data.append("cloud_name", "kadud08u");          
+
+    try {
+      const res = await axios.post(
+        "https://api.cloudinary.com/v1_1/kadud08u/image/upload",
+        data,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      return res.data.secure_url; 
+    } catch (error) {
+      console.error("DETALLE EXACTO DE CLOUDINARY:", error.response?.data || error.message);
+      throw new Error("No se pudo subir la imagen a la nube.");
+    }
+  };
+
   const handleSubmit = async () => {
     setStatusMsg({ text: "", type: "" });
     if (!form.color || !form.peso || !form.valor || !form.imagen) {
@@ -83,43 +124,42 @@ export default function PublicarProducto() {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("token");
-      const formData = new FormData();
 
-      const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
-      formData.append("fecha_ingreso", fechaActual);
-      
-      formData.append("tipo_producto", form.tipo_producto);
-      formData.append("color", form.color);
-      formData.append("peso", form.peso);
-      formData.append("tratamiento", form.tratamiento);
-      formData.append("valor", form.valor);
-      formData.append("stock", form.stock);
-      formData.append("tiene_esmeralda", form.tiene_esmeralda ? "1" : "0");
-      formData.append("oro", form.oro ? "1" : "0");
-      formData.append("oro_rosado", form.oro_rosado ? "1" : "0");
-      formData.append("plata", form.plata ? "1" : "0");
+      // 1. Subir imagen principal pasando estrictamente .uri
+      console.log("☁️ Subiendo imagen a Cloudinary...");
+      const imagenUrl = await subirArchivoCloudinary(form.imagen.uri);
 
-      const imageUri = Platform.OS === "android" ? form.imagen.uri : form.imagen.uri.replace("file://", "");
-      formData.append("imagen", {
-        uri: imageUri,
-        name: `img_${Date.now()}.jpg`,
-        type: "image/jpeg",
-      });
-
+      let certificadoUrl = null;
       if (form.certificado) {
-        const certUri = Platform.OS === "android" ? form.certificado.uri : form.certificado.uri.replace("file://", "");
-        const certName = form.certificado.name || `cert_${Date.now()}`;
-        const isPdf = certName.toLowerCase().endsWith(".pdf");
-        formData.append("certificado", {
-          uri: certUri,
-          name: certName,
-          type: isPdf ? "application/pdf" : "image/jpeg",
-        });
+        console.log("📄 Subiendo certificado a Cloudinary...");
+        certificadoUrl = await subirArchivoCloudinary(form.certificado.uri);
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/productos`, formData, {
+      // 2. Crear el JSON limpio con las URLs en texto plano
+      const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      
+      const payload = {
+        fecha_ingreso: fechaActual,
+        tipo_producto: form.tipo_producto,
+        color: form.color,
+        peso: form.peso,
+        tratamiento: form.tratamiento,
+        valor: form.valor,
+        stock: form.stock,
+        imagen: imagenUrl,
+        certificado: certificadoUrl,
+        tiene_esmeralda: form.tiene_esmeralda ? "1" : "0",
+        oro: form.oro ? "1" : "0",
+        oro_rosado: form.oro_rosado ? "1" : "0",
+        plata: form.plata ? "1" : "0",
+      };
+
+      console.log("🚀 Enviando JSON al backend en Railway:", `${API_BASE_URL}/api/productos`);
+
+      // 3. Enviar los datos por POST en formato JSON a tu backend
+      const response = await axios.post(`${API_BASE_URL}/api/productos`, payload, {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
       });
@@ -129,8 +169,8 @@ export default function PublicarProducto() {
         setTimeout(() => resetForm(), 2000);
       }
     } catch (error) {
-      console.error(error);
-      setStatusMsg({ text: "Error en la conexión con el servidor.", type: "error" });
+      console.error("Error al registrar activo:", error.response?.data || error.message);
+      setStatusMsg({ text: "Error en la conexión o subida.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -162,7 +202,7 @@ export default function PublicarProducto() {
           </View>
           
           <Image 
-            source={require("C://Users/Migue/OneDrive/Desktop/EMERALD_TRADE/emerald-mobile/assets/images/LOGOS/Isotipo/Glaze-blanco.png")}
+            source={require("../assets/images/LOGOS/Isotipo/Glaze-blanco.png")}
             style={styles.logoHeader}
             resizeMode="contain"
           />

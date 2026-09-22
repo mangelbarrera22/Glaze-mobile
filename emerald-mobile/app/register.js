@@ -21,6 +21,8 @@ export default function Register() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [usuarioDisponible, setUsuarioDisponible] = useState(null);
+const [verificandoUsuario, setVerificandoUsuario] = useState(false);
   const [error, setError] = useState(false);
 
   const [form, setForm] = useState({
@@ -36,9 +38,48 @@ export default function Register() {
   });
 
   const handleChange = (name, value) => {
-    setForm({ ...form, [name]: value });
-  };
 
+  setForm({
+    ...form,
+    [name]: value
+  });
+
+  if (name === "usuario") {
+
+    clearTimeout(global.usuarioTimer);
+
+    global.usuarioTimer = setTimeout(() => {
+      verificarUsuario(value);
+    }, 500);
+
+  }
+
+};
+  const verificarUsuario = async (usuario) => {
+
+  if (!usuario.trim()) {
+    setUsuarioDisponible(null);
+    return;
+  }
+
+  try {
+    setVerificandoUsuario(true);
+
+    const res = await fetch(
+      `${API_BASE_URL}/api/auth/verificar-usuario/${usuario}`
+    );
+
+    const data = await res.json();
+
+    setUsuarioDisponible(data.disponible);
+
+  } catch (e) {
+    setUsuarioDisponible(null);
+  } finally {
+    setVerificandoUsuario(false);
+  }
+
+};
   const handleRegister = async () => {
     if (form.password !== form.confirmarPassword) {
       setError(true);
@@ -134,8 +175,43 @@ export default function Register() {
                 </View>
               </View>
             </View>
+            <View style={styles.inputContainer}>
+  <Text style={styles.inputLabel}>NOMBRE DE USUARIO</Text>
 
-            {/* CORREO */}
+  <View style={styles.inputWrapper}>
+    <Feather name="user" size={16} color="#94a3b8" />
+
+    <TextInput
+      placeholder="Ej. miguelbarrera"
+      placeholderTextColor="#cbd5e1"
+      autoCapitalize="none"
+      style={styles.input}
+      value={form.usuario}
+      onChangeText={(v) => handleChange("usuario", v)}
+    />
+  </View>
+
+  {verificandoUsuario && (
+    <Text style={{ color:"#64748b", marginTop:5, fontSize:11 }}>
+      Verificando...
+    </Text>
+  )}
+
+  {!verificandoUsuario && usuarioDisponible === true && (
+    <Text style={{ color:"#16a34a", marginTop:5, fontSize:11 }}>
+      ✓ Nombre de usuario disponible
+    </Text>
+  )}
+
+  {!verificandoUsuario && usuarioDisponible === false && (
+    <Text style={{ color:"#dc2626", marginTop:5, fontSize:11 }}>
+      ✕ Ese nombre de usuario ya existe
+    </Text>
+  )}
+
+</View>
+
+             {/* CORREO */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>CORREO ELECTRÓNICO</Text>
               <View style={styles.inputWrapper}>
@@ -217,9 +293,11 @@ export default function Register() {
             ) : null}
 
             <TouchableOpacity 
-              style={[styles.botonPrincipal, loading && styles.botonDisabled]} 
+              style={[
+                styles.botonPrincipal, 
+                (loading || usuarioDisponible === false) && styles.botonDisabled]} 
               onPress={handleRegister} 
-              disabled={loading}
+              disabled={loading || usuarioDisponible === false }
             >
               {loading ? <ActivityIndicator color="white" /> : <Text style={styles.botonText}>REGISTRARSE</Text>}
             </TouchableOpacity>
